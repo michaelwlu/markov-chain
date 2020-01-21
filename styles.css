@@ -1,0 +1,9 @@
+#textBoxContainer {
+    width: 50%;
+    height: 100%;
+};
+
+input[type="text" i]{
+    width: 100%;
+    height: 100%
+}

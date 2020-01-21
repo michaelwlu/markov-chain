@@ -1,120 +1,135 @@
-const fs = require("fs")
-const sampleText = fs.readFileSync('./text.txt').toString()
+const fs = require("fs");
+const sampleText = fs.readFileSync("./text.txt").toString();
 
 // Break up a line into words and strip punctuation
 function getWords(textLine) {
-    return textLine.trim().match(/[^\s]+/g).map((el) => el.replace(/[^\w\s]/g, "").toLowerCase())
+  return textLine
+    .trim()
+    .match(/[^\s]+/g)
+    .map(el => el.replace(/[^\w\s]/g, "").toLowerCase());
 }
 
 // Break up a text into lines of words
 function getLines(text) {
-    const lines = []
+  const lines = [];
 
-    const textByLine = text.split('\n').filter((el) => el)
-    textByLine.forEach(el => lines.push(getWords(el)))
+  const textByLine = text.split("\n").filter(el => el);
+  textByLine.forEach(el => lines.push(getWords(el)));
 
-    return lines
+  return lines;
 }
 
-const sampleLines = getLines(sampleText)
+const sampleLines = getLines(sampleText);
 
 // Count ngrams of a line
 function countNgrams(tokens, n) {
+  const ngrams = {};
 
-    const ngrams = {}
+  if (tokens.length < n) {
+    return ngrams;
+  }
 
-    if (tokens.length < n) {
-        return ngrams
+  for (let i = 0; i < tokens.length - n + 1; ++i) {
+    const ngram = tokens.slice(i, i + n).join(" ");
+
+    if (ngrams.hasOwnProperty(ngram)) {
+      ngrams[ngram]++;
+    } else {
+      ngrams[ngram] = 1;
     }
-
-    for (let i = 0; i < tokens.length - n + 1; ++i) {
-
-        const ngram = tokens.slice(i,i+n).join(' ')
-
-        if (ngrams.hasOwnProperty(ngram)) {
-            ngrams[ngram]++
-        } else {
-            ngrams[ngram] = 1
-        }
-    }
-    return ngrams
+  }
+  return ngrams;
 }
 
 // Create Markov dictionary of a line
 function createMarkov(tokens, n) {
-    const ngrams = {}
+  const ngrams = {};
 
-    if (tokens.length < n) {
-        return ngrams
+  if (tokens.length < n) {
+    return ngrams;
+  }
+
+  for (let i = 0; i < tokens.length - n + 1; ++i) {
+    const ngram = tokens.slice(i, i + n).join(" ");
+
+    if (!ngrams.hasOwnProperty(ngram)) {
+      ngrams[ngram] = [];
     }
 
-    for (let i = 0; i < tokens.length - n + 1; ++i) {
-
-        const ngram = tokens.slice(i,i+n).join(' ')
-
-        if (!ngrams.hasOwnProperty(ngram)) {
-            ngrams[ngram] = []
-        }
-
-        ngrams[ngram].push(tokens.slice(i+n, i+(2*n)).join(' '))
-    }
-    return ngrams
+    ngrams[ngram].push(tokens.slice(i + n, i + 2 * n).join(" "));
+  }
+  return ngrams;
 }
 
 // Create Markovs for each line of a text
-function textMarkovs (textLines, n) {
-    const markovs = []
-    
-    textLines.forEach((line) => markovs.push(createMarkov(line, n)))
+function textMarkovs(textLines, n) {
+  const markovs = [];
 
-    return markovs
+  textLines.forEach(line => markovs.push(createMarkov(line, n)));
+
+  return markovs;
 }
 
-const sampleMarkovs = textMarkovs(sampleLines, 2)
+const sampleMarkovs = textMarkovs(sampleLines, 2);
 
 // Merge Markovs of a multiple line text
 function mergeMarkovs(markovsArr) {
-    const mergedMarkov = {}
+  const mergedMarkov = {};
 
-    for (let markov of markovsArr) {
+  for (let markov of markovsArr) {
+    for (let ngram of Object.keys(markov)) {
+      if (!mergedMarkov.hasOwnProperty(ngram)) {
+        mergedMarkov[ngram] = [];
+      }
 
-        for (let ngram of Object.keys(markov)) {
-
-            if (!mergedMarkov.hasOwnProperty(ngram)) {
-                mergedMarkov[ngram] = []
-            }
-
-            markov[ngram].forEach((nextNgram) => mergedMarkov[ngram].push(nextNgram))
-        }
+      markov[ngram].forEach(nextNgram => mergedMarkov[ngram].push(nextNgram));
     }
-    return mergedMarkov
+  }
+  return mergedMarkov;
 }
 
-const sampleMergedMarkov = mergeMarkovs(sampleMarkovs)
+const sampleMergedMarkov = mergeMarkovs(sampleMarkovs);
 // console.log(sampleMergedMarkov)
 
 // Randomly choose one element from list
 function choice(list) {
-    const i = Math.floor(Math.random() * list.length)
-    return list[i]
+  const i = Math.floor(Math.random() * list.length);
+  return list[i];
 }
 
 function generateMarkovChain(markovObj, length) {
-    const start = choice(Object.keys(markovObj))
-    let current = start
-    let output = [current]
+  const start = choice(Object.keys(markovObj));
+  let current = start;
+  let output = [current];
 
-    for (let i = 0; i < length; ++i) {
-        if (markovObj.hasOwnProperty(current)) {
-            const next = choice(markovObj[current])
+  for (let i = 0; i < length; ++i) {
+    if (markovObj.hasOwnProperty(current)) {
+      const next = choice(markovObj[current]);
 
-            output.push(next)
-            current = output[output.length - 1]
-        }
+      output.push(next);
+      current = output[output.length - 1];
     }
+  }
 
-    return output.join(' ')
+  return output.join(" ");
 }
 
-const sampleChain = generateMarkovChain(sampleMergedMarkov, 10)
-console.log(sampleChain)
+
+function textToMarkovChain(textLines, n, length, linesNum) {
+    const markovs = textMarkovs(textLines, n)
+    const mergedMarkov = mergeMarkovs(markovs)
+    
+    let markovText = ''
+    for (let i = 0; i < linesNum; ++i) {
+        let generatedChain = generateMarkovChain(mergedMarkov, length)
+        generatedChainCapitalized = generatedChain.charAt(0).toUpperCase() + generatedChain.slice(1)
+        markovText += generatedChainCapitalized
+        if (i < linesNum - 1) {
+            markovText += '\n'
+        }
+    }
+    return markovText
+}
+
+const newPoem = textToMarkovChain(sampleLines, 1, 10, 5);
+console.log(newPoem);
