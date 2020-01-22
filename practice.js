@@ -1,10 +1,11 @@
 const fs = require("fs");
-const sampleText = fs.readFileSync("./text.txt").toString();
+const sampleText = fs.readFileSync("./im-blue.txt").toString();
 
 // Break up a line into words and strip punctuation
 function getWords(textLine) {
-  return textLine
+  return `_start_ ${textLine}`
     .trim()
+    .replace(/[,;]/g, " _pause_")
     .match(/[^\s]+/g)
     .map(el => el.replace(/[^\w\s]/g, "").toLowerCase());
 }
@@ -20,6 +21,7 @@ function getLines(text) {
 }
 
 const sampleLines = getLines(sampleText);
+// console.log(sampleLines)
 
 // Count ngrams of a line
 function countNgrams(tokens, n) {
@@ -42,12 +44,16 @@ function countNgrams(tokens, n) {
 }
 
 // Create Markov dictionary of a line
-function createMarkov(tokens, n) {
+function createMarkov(tokens, n) { //2
   const ngrams = {};
 
   if (tokens.length < n) {
     return ngrams;
   }
+
+  // [0, 1, 2]
+  
+  ngrams['_start_'] = [tokens[1]]
 
   for (let i = 0; i < tokens.length - n + 1; ++i) {
     const ngram = tokens.slice(i, i + n).join(" ");
@@ -56,10 +62,12 @@ function createMarkov(tokens, n) {
       ngrams[ngram] = [];
     }
 
-    ngrams[ngram].push(tokens.slice(i + n, i + 2 * n).join(" "));
+    ngrams[ngram].push(tokens[i + n]);
   }
   return ngrams;
 }
+
+// console.log(createMarkov(sampleLines[0], 2))
 
 // Create Markovs for each line of a text
 function textMarkovs(textLines, n) {
@@ -71,6 +79,7 @@ function textMarkovs(textLines, n) {
 }
 
 const sampleMarkovs = textMarkovs(sampleLines, 2);
+// console.log(sampleMarkovs)
 
 // Merge Markovs of a multiple line text
 function mergeMarkovs(markovsArr) {
@@ -97,21 +106,26 @@ function choice(list) {
   return list[i];
 }
 
-function generateMarkovChain(markovObj, length) {
-  const start = choice(Object.keys(markovObj));
+function generateMarkovChain(markovObj, len) {
+  const start = `_start_ ${choice(markovObj['_start_'])}`;
   let current = start;
-  let output = [current];
+  let output = start.split(' ');
 
-  for (let i = 0; i < length; ++i) {
+  for (let i = 0; i < len; ++i) {
     if (markovObj.hasOwnProperty(current)) {
       const next = choice(markovObj[current]);
 
-      output.push(next);
-      current = output[output.length - 1];
+      output.push(next); // [_start_, and, god]
+      current = output.slice(-2).join(' ');
     }
   }
 
-  return output.join(" ");
+  let joinedOutput = output
+    .join(" ")
+    .replace(/_start_ /gi, '')
+    .replace(/ _pause_/gi, ',');
+
+  return joinedOutput.charAt(0).toUpperCase() + joinedOutput.slice(1)
 }
 
 
@@ -122,8 +136,7 @@ function textToMarkovChain(textLines, n, length, linesNum) {
     let markovText = ''
     for (let i = 0; i < linesNum; ++i) {
         let generatedChain = generateMarkovChain(mergedMarkov, length)
-        generatedChainCapitalized = generatedChain.charAt(0).toUpperCase() + generatedChain.slice(1)
-        markovText += generatedChainCapitalized
+        markovText += generatedChain
         if (i < linesNum - 1) {
             markovText += '\n'
         }
@@ -131,5 +144,5 @@ function textToMarkovChain(textLines, n, length, linesNum) {
     return markovText
 }
 
-const newPoem = textToMarkovChain(sampleLines, 1, 10, 5);
+const newPoem = textToMarkovChain(sampleLines, 2, 10, 20);
 console.log(newPoem);
